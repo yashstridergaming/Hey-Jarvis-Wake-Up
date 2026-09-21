@@ -111,20 +111,34 @@ def listen_for_claps():
 
 def listen_for_voice():
     r = sr.Recognizer()
+    
+    # Yahan se index hata diya, ab yeh direct Windows ka default mic (WO Mic) uthayega
     with sr.Microphone() as source:
         speak("Say Hey Jarvis wake up...")
-        r.adjust_for_ambient_noise(source)
+        
+        print("\n[INFO] Mic adjust ho raha hai...")
+        r.adjust_for_ambient_noise(source, duration=1) 
+        
+        print("\n[INFO] Ab bolo! (Listening NOW...)") 
         try:
-            audio = r.listen(source, timeout=5, phrase_time_limit=5)
-            command = r.recognize_google(audio).lower()
-            print(f"\nYou said via Voice: {command}")
+            # 8 second ka time diya hai bolne ke liye
+            audio = r.listen(source, timeout=8, phrase_time_limit=8)
+            print("[INFO] Awaaz record ho gayi, Google se check kar raha hu...")
             
-            if "hey jarvis wake up" in command or "jarvis wake up" in command:
+            command = r.recognize_google(audio).lower()
+            print(f"\nYou said via Voice: '{command}'")
+            
+            # Smart match
+            if "jarvis" in command and "wake" in command:
                 return True
+                
         except sr.WaitTimeoutError:
-            speak("No voice detected.")
+            speak("No voice detected. Time out ho gaya.")
         except sr.UnknownValueError:
-            speak("Could not understand audio.")
+            speak("Awaaz clear nahi thi, samajh nahi aaya.")
+        except sr.RequestError:
+            print("[ERROR] Internet connection check karo.")
+            
     return False
 
 # --- Main Execution ---
@@ -137,15 +151,17 @@ if __name__ == "__main__":
     text_thread = threading.Thread(target=listen_for_text, daemon=True)
     text_thread.start()
     
-    speak("System is ready. Type 'hey jarvis wake up' in terminal OR physically clap 2 times to use voice.")
+    speak("System is ready. Type 'hey jarvis' OR just speak directly.")
     
     while True:
-        if listen_for_claps():
-            if listen_for_voice():
-                speak("Voice Command Matched! Access Granted.")
-                open_jarvis_app()
-                speech_queue.join() # Wait for speech to finish before exiting
-                os._exit(0)
-            else:
-                speak("Voice command failed. Going back to sleep. You can still type the command.")
-                time.sleep(1)
+        # YAHAN SE CLAP WALI CONDITION HATA DI HAI
+        if listen_for_voice():
+            speak("Voice Command Matched! Access Granted.")
+            open_jarvis_app()
+            
+            speech_queue.join()
+            print("\nOpening file in background, please wait...")
+            time.sleep(2) 
+            os._exit(0)
+        else:
+            time.sleep(1) # Agar awaaz match nahi hui, toh 1 second baad wapas sunega
